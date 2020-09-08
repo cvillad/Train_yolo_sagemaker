@@ -1,7 +1,10 @@
-FROM continuumio/miniconda3
+FROM nvcr.io/nvidia/pytorch:20.08-py3
 
-RUN apt update -y && \
-	apt install gcc -y
+# Force stdin, stdout and stderr to be totally unbuffered. Good for logging
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends nginx curl
 
 WORKDIR /opt/ml/code
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "configuring files"
-chmod +x src/train
+chmod +x src/code/train
 
 val=${1:-"build"}
 rebuild_val="rebuild"
