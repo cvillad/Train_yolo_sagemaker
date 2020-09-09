@@ -6,11 +6,13 @@ ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends nginx curl
 
-WORKDIR /opt/ml/code
+WORKDIR /opt/ml/
 
 RUN pip install sagemaker-training
 
-COPY src/ /opt/ml
+COPY src/ /opt/ml/code
+
+COPY cfg/ /opt/ml/input/config
 
 ENV SAGEMAKER_PROGRAM train
 

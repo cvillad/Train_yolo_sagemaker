@@ -3,6 +3,7 @@ import argparse
 import subprocess
 import os
 import sys
+from yolov3.utils import logger
 
 prefix = '/opt/ml/'
 input_path = os.path.join(prefix,'input/data')
@@ -11,14 +12,17 @@ model_path = os.path.join(prefix, 'model')
 config_path = os.path.join(prefix, 'input/config')
 
 weights_path = os.path.join(input_path, 'model')
-cfg_path = os.path.join(config_path, 'yolov3-tiny.cfg')
-data_path = os.path.join(config_path, 'obj.data')
+cfg_path = os.path.join(prefix, 'src/code/yolov3/cfg/yolov3-tiny.cfg')
+data_path = os.path.join(input_path, 'training/obj.data')
 
 
-channel_name = 'training'
-training_path = os.path.join(input_path, channel_name)
+training_channel = 'training'
+training_path = os.path.join(input_path, training_channel)
 
-training_script = 'yolov3/train.py')
+validating_channel = 'validating'
+validating_path = os.path.join(input_path, validating_channel)
+
+training_script = 'code/yolov3/train.py'
 default_params = ['--cfg',str(cfg_path),'--data',str(data_path),'--weights',weights_path]
 
 def _run(cmd):
@@ -27,6 +31,8 @@ def _run(cmd):
 
     return_code = process.poll()
     if return_code:
+        print('LOL',os.getcwd())
+        #logger.info('PWD:',os.getcwd())
         error_msg = 'Return code: {}, CMD: {} Err: {}'.format(return_code, cmd, stderr)
         raise Exception(error_msg)
 
@@ -35,6 +41,9 @@ if __name__=='__main__':
     
     train_cmd = [sys.executable, training_script] + default_params
 
-    _run(train_cmd)
+    #_run(train_cmd)
+    for root, dirs, files in os.walk(prefix):
+        for name in dirs:
+            logger.info(os.path.join(root,name))
 
-    print('LOL')
+    logger.info('Training completed')
