@@ -133,19 +133,19 @@ if __name__ == "__main__":
   if args.clean:
     contents = clean_dataset(os.path.join(root, args.directory_name), True)
   else:
-    contents = clean_dataset(os.path.join(root, args.directory_name), False)
+    pass
+    #contents = clean_dataset(os.path.join(root, args.directory_name), False)
 
-  data = []
-  for path, values in tqdm(contents, desc="Getting classes", total=len(contents)):
-    class_ = list(set([int(val.split(" ")[0]) for val in values]))[0]
-    file_name = path.split("/")[-1]
-    data.append([path, class_, file_name])
-  
-  data = pd.DataFrame(data, columns=["paths", "classes", "out_name"])
-  data.to_csv(os.path.join(root, args.directory_name, "data.csv"), index=False)
-  
-  
+
   if args.split:
+    data = []
+    for path, values in tqdm(contents, desc="Getting classes", total=len(contents)):
+      class_ = list(set([int(val.split(" ")[0]) for val in values]))[0]
+      file_name = path.split("/")[-1]
+      data.append([path, class_, file_name])
+
+    data = pd.DataFrame(data, columns=["paths", "classes", "out_name"])
+    data.to_csv(os.path.join(root, args.directory_name, "data.csv"), index=False)
     output_path = os.path.join(root, args.output_directory)
     training_path = os.path.join(output_path, "training")
     validating_path = os.path.join(output_path, "validating")
