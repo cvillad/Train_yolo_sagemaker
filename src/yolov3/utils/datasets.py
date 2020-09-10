@@ -14,8 +14,10 @@ from PIL import Image, ExifTags
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
+from utils.logger import get_logger, info_level, debug_level
 from utils.utils import xyxy2xywh, xywh2xyxy
 
+logger = get_logger(debug_level)
 help_url = 'https://github.com/ultralytics/yolov3/wiki/Train-Custom-Data'
 img_formats = ['.bmp', '.jpg', '.jpeg', '.png', '.tif', '.tiff', '.dng']
 vid_formats = ['.mov', '.avi', '.mp4', '.mpg', '.mpeg', '.m4v', '.wmv', '.mkv']
@@ -257,16 +259,17 @@ class LoadStreams:  # multiple IP or RTSP cameras
 
 
 class LoadImagesAndLabels(Dataset):  # for training/testing
-    def __init__(self, path, img_size=416, batch_size=16, augment=False, hyp=None, rect=False, image_weights=False,
+    def __init__(self, input_path, path, img_size=416, batch_size=16, augment=False, hyp=None, rect=False, image_weights=False,
                  cache_images=False, single_cls=False, pad=0.0):
         try:
             path = str(Path(path))  # os-agnostic
             parent = str(Path(path).parent) + os.sep
-            print(path,'-',parent)
             if os.path.isfile(path):  # file
                 with open(path, 'r') as f:
                     f = f.read().splitlines()
+                    #logger.debug("MALPARIDO: "+str(f))
                     f = [x.replace('./', parent) if x.startswith('./') else x for x in f]  # local to global path
+                
             elif os.path.isdir(path):  # folder
                 f = glob.iglob(path + os.sep + '*.*')
             else:
@@ -294,9 +297,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                             for x in self.img_files]
 
         # Read image shapes (wh)
-        self.img_files = list(map(lambda x: os.path.join(os.getcwd(), x), self.img_files))
-        self.label_files = list(map(lambda x: os.path.join(os.getcwd(), x), self.label_files))
-        
+        self.img_files = list(map(lambda x: os.path.join(input_path, x), self.img_files))
+        self.label_files = list(map(lambda x: os.path.join(input_path, x), self.label_files))
         sp = path.replace('.txt', '') + '.shapes'  # shapefile path
         try:
             with open(sp, 'r') as f:  # read existing shapefile

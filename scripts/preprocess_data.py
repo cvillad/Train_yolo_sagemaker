@@ -116,11 +116,12 @@ if __name__ == "__main__":
   parser.add_argument("--upload", "-u", action="store_true", help="if you want to upload dataset")
   parser.add_argument("--directory-name", "-d", default="cvat_data", help="relative path where the data is located"
       " It must be a son of the parent directory example=data/training",type=str)
-  parser.add_argument("--output-directory", "-od", default="data", help="this is where the clean and split data will be save"
+  parser.add_argument("--output-directory", "-od", default="training", help="this is where the clean and split data will be save"
       " in order to upload to s3 bucket", type=str)
+  parser.add_argument("-change-path","-cp", action="store_true", help="if you want to change dataset_path only")
   parser.add_argument("--bucket-name", "-bn", default="sagemaker-us-west-2-256305374409",
       help="bucket name where we are going to save the data", type=str)
-  parser.add_argument("--key-name", "-kn", default="TiendaApp/data", help="Key name where you want to save"
+  parser.add_argument("--key-name", "-kn", default="TiendaApp/training", help="Key name where you want to save"
       " the data in s3 example: TiendaApp/data", type=str)
 
   args = parser.parse_args()
@@ -165,6 +166,12 @@ if __name__ == "__main__":
                 os.path.join(root, args.output_directory, "obj.names"))
     generating_txt(root, training_path, validating_path, args.output_directory)
 
+  if args.change_path:
+    os.rename(os.path.join(root, args.directory_name),os.path.join(root, args.output_directory))
+    training_path = os.path.join(root, args.output_directory, "training")
+    validating_path = os.path.join(root, args.output_directory, "validating")
+    generating_txt(root, training_path, validating_path, args.output_directory)
+  
   if args.upload:
     upload_directory_s3(local_directory=os.path.join(root, args.output_directory),
                         bucket=args.bucket_name,

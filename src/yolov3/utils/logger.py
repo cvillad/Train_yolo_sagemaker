@@ -1,5 +1,9 @@
 import logging
 
-logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
+info_level = logging.INFO
+debug_level = logging.DEBUG
 
-logger = logging.getLogger()
+def get_logger(level=logging.INFO):
+    logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=level)
+    logger = logging.getLogger()
+    return logger

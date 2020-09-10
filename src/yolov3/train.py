@@ -9,6 +9,9 @@ import test  # import test.py to get mAP after each epoch
 from models import *
 from utils.datasets import *
 from utils.utils import *
+from utils.logger import get_logger, info_level, debug_level
+
+logger = get_logger(debug_level)
 
 mixed_precision = True
 try:  # Mixed precision training https://github.com/NVIDIA/apex
@@ -55,6 +58,7 @@ if hyp['fl_gamma']:
 
 
 def train(hyp):
+    input_path = opt.input
     cfg = opt.cfg
     data = opt.data
     epochs = opt.epochs  # 500200 batches at bs 64, 117263 images = 273 epochs
@@ -78,8 +82,9 @@ def train(hyp):
     # Configure run
     init_seeds()
     data_dict = parse_data_cfg(data)
-    train_path = data_dict['train']
-    test_path = data_dict['train']
+    logger.info(data_dict)
+    train_path = os.path.join(input_path,data_dict['train'])
+    test_path = os.path.join(input_path,data_dict['train'])
     nc = 1 if opt.single_cls else int(data_dict['classes'])  # number of classes
     hyp['cls'] *= nc / 80  # update coco-tuned hyp['cls'] to current dataset
 
@@ -191,7 +196,7 @@ def train(hyp):
         model.yolo_layers = model.module.yolo_layers  # move yolo layer indices to top level
 
     # Dataset
-    dataset = LoadImagesAndLabels(train_path, img_size, batch_size,
+    dataset = LoadImagesAndLabels(input_path, train_path, img_size, batch_size,
                                   augment=True,
                                   hyp=hyp,  # augmentation hyperparameters
                                   rect=opt.rect,  # rectangular training
@@ -209,7 +214,7 @@ def train(hyp):
                                              collate_fn=dataset.collate_fn)
 
     # Testloader
-    testloader = torch.utils.data.DataLoader(LoadImagesAndLabels(test_path, imgsz_test, batch_size,
+    testloader = torch.utils.data.DataLoader(LoadImagesAndLabels(input_path, test_path, imgsz_test, batch_size,
                                                                  hyp=hyp,
                                                                  rect=True,
                                                                  cache_images=opt.cache_images,
@@ -394,6 +399,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--epochs', type=int, default=300)  # 500200 batches at bs 16, 117263 COCO images = 273 epochs
     parser.add_argument('--batch-size', type=int, default=16)  # effective bs = batch_size * accumulate = 16 * 4 = 64
+    parser.add_argument('--input', type=str, default='/opt/ml/input/data', help='*.input path')
     parser.add_argument('--cfg', type=str, default='cfg/yolov3-spp.cfg', help='*.cfg path')
     parser.add_argument('--data', type=str, default='data/coco2017.data', help='*.data path')
     parser.add_argument('--multi-scale', action='store_true', help='adjust (67%% - 150%%) img_size every 10 batches')

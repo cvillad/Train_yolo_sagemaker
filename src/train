@@ -3,7 +3,9 @@ import argparse
 import subprocess
 import os
 import sys
-from yolov3.utils.logger import logger
+from yolov3.utils.logger import get_logger, info_level, debug_level
+
+logger = get_logger(debug_level)
 
 prefix = '/opt/ml/'
 input_path = os.path.join(prefix,'input/data')
@@ -24,11 +26,11 @@ validating_channel = 'validating'
 validating_path = os.path.join(input_path, validating_channel)
 
 training_script = 'code/yolov3/train.py'
-default_params = ['--cfg',str(cfg_path),'--data',str(data_path),'--weights',weights_path]
+default_params = ['--cfg',str(cfg_path),'--data',str(data_path),'--weights',str(weights_path),'--input',str(input_path)]
 
 def _run(cmd):
     logger.info('Running training script')
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=os.environ)
+    process = subprocess.Popen(cmd, env=os.environ)
     stdout, stderr = process.communicate()
 
     return_code = process.poll()
