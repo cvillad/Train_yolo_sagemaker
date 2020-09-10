@@ -12,8 +12,6 @@ RUN pip install sagemaker-training
 
 COPY src/ /opt/ml/code
 
-COPY cfg/ /opt/ml/input/config
-
 ENV SAGEMAKER_PROGRAM train
 
 ENV PATH="/opt/ml/code:${PATH}"
