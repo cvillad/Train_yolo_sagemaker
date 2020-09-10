@@ -3,7 +3,7 @@ import argparse
 import subprocess
 import os
 import sys
-from yolov3.utils import logger
+from yolov3.utils.logger import logger
 
 prefix = '/opt/ml/'
 input_path = os.path.join(prefix,'input/data')
@@ -11,8 +11,9 @@ output_path = os.path.join(prefix, 'output/data')
 model_path = os.path.join(prefix, 'model')
 config_path = os.path.join(prefix, 'input/config')
 
-weights_path = os.path.join(input_path, 'model')
-cfg_path = os.path.join(prefix, 'src/code/yolov3/cfg/yolov3-tiny.cfg')
+#weights_path = os.path.join(input_path, 'model')
+weights_path = ''
+cfg_path = os.path.join(prefix, 'code/yolov3/cfg/yolov3-tiny.cfg')
 data_path = os.path.join(input_path, 'training/obj.data')
 
 
@@ -32,7 +33,7 @@ def _run(cmd):
 
     return_code = process.poll()
     if return_code:
-        error_msg = 'Return code: {}, CMD: {} Err: {}'.format(return_code, cmd, stderr)
+        error_msg = 'Return code: {}  Err: {}'.format(return_code, stderr)
         raise Exception(error_msg)
 
 
@@ -43,7 +44,6 @@ def show_dirs():
             logger.info(os.path.join(root,name))
 
 if __name__=='__main__':
-    
     show_dirs()
 
     train_cmd = [sys.executable, training_script] + default_params

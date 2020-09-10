@@ -15,5 +15,5 @@ fi
 training_path="/opt/ml/input/data/training"
 code_path="/opt/ml/code"
 
-docker run --rm -v $(pwd)/data:$training_path \
+docker run --rm -v $(pwd)/training:$training_path \
 	-v $(pwd)/src:$code_path -it train train
