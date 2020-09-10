@@ -26,24 +26,27 @@ training_script = 'code/yolov3/train.py'
 default_params = ['--cfg',str(cfg_path),'--data',str(data_path),'--weights',weights_path]
 
 def _run(cmd):
+    logger.info('Running training script')
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=os.environ)
     stdout, stderr = process.communicate()
 
     return_code = process.poll()
     if return_code:
-        print('LOL',os.getcwd())
-        #logger.info('PWD:',os.getcwd())
         error_msg = 'Return code: {}, CMD: {} Err: {}'.format(return_code, cmd, stderr)
         raise Exception(error_msg)
 
 
-if __name__=='__main__':
-    
-    train_cmd = [sys.executable, training_script] + default_params
-
-    #_run(train_cmd)
+def show_dirs():
+    logger.info('Container structure')
     for root, dirs, files in os.walk(prefix):
         for name in dirs:
             logger.info(os.path.join(root,name))
+
+if __name__=='__main__':
+    
+    show_dirs()
+
+    train_cmd = [sys.executable, training_script] + default_params
+    _run(train_cmd)
 
     logger.info('Training completed')
