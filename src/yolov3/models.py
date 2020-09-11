@@ -1,9 +1,11 @@
-from utils.google_utils import *
+fpfrom utils.google_utils import *
 from utils.layers import *
 from utils.parse_config import *
+from utils.logger import *
 
 ONNX_EXPORT = False
 
+logger = get_logger(debug_level)
 
 def create_modules(module_defs, img_size, cfg):
     # Constructs module list of layer blocks from module configuration in module_defs
@@ -115,13 +117,13 @@ def create_modules(module_defs, img_size, cfg):
                 bias[:, 5:] += math.log(0.6 / (modules.nc - 0.99))  # cls (sigmoid(p) = 1/nc)
                 module_list[j][0].bias = torch.nn.Parameter(bias_, requires_grad=bias_.requires_grad)
             except:
-                print('WARNING: smart bias initialization failure.')
+                logger.warning('smart bias initialization failure.')
 
         elif mdef['type'] == 'dropout':
             perc = float(mdef['probability'])
             modules = nn.Dropout(p=perc)
         else:
-            print('Warning: Unrecognized Layer Type: ' + mdef['type'])
+            logger.warning('Unrecognized Layer Type: ' + mdef['type'])
 
         # Register module list and number of output filters
         module_list.append(modules)
@@ -272,7 +274,7 @@ class Darknet(nn.Module):
         img_size = x.shape[-2:]  # height, width
         yolo_out, out = [], []
         if verbose:
-            print('0', x.shape)
+            logger.info('0', x.shape)
             str = ''
 
         # Augment images (inference and test only)
@@ -299,7 +301,7 @@ class Darknet(nn.Module):
 
             out.append(x if self.routs[i] else [])
             if verbose:
-                print('%g/%g %s -' % (i, len(self.module_list), name), list(x.shape), str)
+                logger.info('%g/%g %s -' % (i, len(self.module_list), name), list(x.shape), str)
                 str = ''
 
         if self.training:  # train
@@ -320,7 +322,7 @@ class Darknet(nn.Module):
 
     def fuse(self):
         # Fuse Conv2d + BatchNorm2d layers throughout model
-        print('Fusing layers...')
+        logger.info('Fusing layers...')
         fused_list = nn.ModuleList()
         for a in list(self.children())[0]:
             if isinstance(a, nn.Sequential):
@@ -431,7 +433,7 @@ def convert(cfg='cfg/yolov3-spp.cfg', weights='weights/yolov3-spp.weights'):
         model.load_state_dict(torch.load(weights, map_location='cpu')['model'])
         target = weights.rsplit('.', 1)[0] + '.weights'
         save_weights(model, path=target, cutoff=-1)
-        print("Success: converted '%s' to '%s'" % (weights, target))
+        logger.info("Success: converted '%s' to '%s'" % (weights, target))
 
     elif weights.endswith('.weights'):  # darknet format
         _ = load_darknet_weights(model, weights)
@@ -444,10 +446,10 @@ def convert(cfg='cfg/yolov3-spp.cfg', weights='weights/yolov3-spp.weights'):
 
         target = weights.rsplit('.', 1)[0] + '.pt'
         torch.save(chkpt, target)
-        print("Success: converted '%s' to '%s'" % (weights, target))
+        logger.info("Success: converted '%s' to '%s'" % (weights, target))
 
     else:
-        print('Error: extension not supported.')
+        logger.error('Error: extension not supported.')
 
 
 def attempt_download(weights):
@@ -471,7 +473,7 @@ def attempt_download(weights):
             r = gdrive_download(id=d[file], name=weights)
         else:  # download from pjreddie.com
             url = 'https://pjreddie.com/media/files/' + file
-            print('Downloading ' + url)
+            logger.info('Downloading ' + url)
             r = os.system('curl -f ' + url + ' -o ' + weights)
 
         # Error check

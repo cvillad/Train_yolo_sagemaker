@@ -12,6 +12,8 @@ RUN pip install sagemaker-training
 
 COPY src/ /opt/ml/code
 
+RUN mkdir /opt/ml/checkpoints
+
 ENV SAGEMAKER_PROGRAM train
 
 ENV PATH="/opt/ml/code:${PATH}"

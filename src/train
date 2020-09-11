@@ -12,6 +12,7 @@ input_path = os.path.join(prefix,'input/data')
 output_path = os.path.join(prefix, 'output/data')
 model_path = os.path.join(prefix, 'model')
 config_path = os.path.join(prefix, 'input/config')
+checkpoint_path = os.path.join(prefix, 'checkpoints')
 
 #weights_path = os.path.join(input_path, 'model')
 weights_path = ''
@@ -26,7 +27,7 @@ validating_channel = 'validating'
 validating_path = os.path.join(input_path, validating_channel)
 
 training_script = 'code/yolov3/train.py'
-default_params = ['--cfg',str(cfg_path),'--data',str(data_path),'--weights',str(weights_path),'--input',str(input_path)]
+default_params = ['--cfg',str(cfg_path),'--data',str(data_path),'--weights',str(weights_path),'--input',str(input_path), '--model',str(model_path),'--checkpoints',str(checkpoint_path),'--epochs',str(2)]
 
 def _run(cmd):
     logger.info('Running training script')

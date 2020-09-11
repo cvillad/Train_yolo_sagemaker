@@ -12,7 +12,6 @@ from utils.utils import *
 from utils.logger import get_logger, info_level, debug_level
 
 logger = get_logger(debug_level)
-
 mixed_precision = True
 try:  # Mixed precision training https://github.com/NVIDIA/apex
     from apex import amp
@@ -20,10 +19,7 @@ except:
     print('Apex recommended for faster mixed precision training: https://github.com/NVIDIA/apex')
     mixed_precision = False  # not installed
 
-wdir = 'weights' + os.sep  # weights dir
-last = wdir + 'test.pt'
-best = wdir + 'best.pt'
-results_file = 'results.txt'
+
 
 # Hyperparameters
 hyp = {'giou': 3.54,  # giou loss gain
@@ -48,16 +44,22 @@ hyp = {'giou': 3.54,  # giou loss gain
 # Overwrite hyp with hyp*.txt (optional)
 f = glob.glob('hyp*.txt')
 if f:
-    print('Using %s' % f[0])
+    logger.info('Using %s' % f[0])
     for k, v in zip(hyp.keys(), np.loadtxt(f[0])):
         hyp[k] = v
 
 # Print focal loss if gamma > 0
 if hyp['fl_gamma']:
-    print('Using FocalLoss(gamma=%g)' % hyp['fl_gamma'])
+    logger.info('Using FocalLoss(gamma=%g)' % hyp['fl_gamma'])
 
 
 def train(hyp):
+    wdir = opt.model # weights dir
+    last = os.path.join(wdir,'test.pt')
+    best = os.path.join(wdir,'best.pt')
+    ckpt_path = opt.checkpoints
+    results_file = 'results.txt'
+    
     input_path = opt.input
     cfg = opt.cfg
     data = opt.data
@@ -84,7 +86,7 @@ def train(hyp):
     data_dict = parse_data_cfg(data)
     logger.info(data_dict)
     train_path = os.path.join(input_path,data_dict['train'])
-    test_path = os.path.join(input_path,data_dict['train'])
+    test_path = os.path.join(input_path,data_dict['valid'])
     nc = 1 if opt.single_cls else int(data_dict['classes'])  # number of classes
     hyp['cls'] *= nc / 80  # update coco-tuned hyp['cls'] to current dataset
 
@@ -113,12 +115,11 @@ def train(hyp):
         optimizer = optim.SGD(pg0, lr=hyp['lr0'], momentum=hyp['momentum'], nesterov=True)
     optimizer.add_param_group({'params': pg1, 'weight_decay': hyp['weight_decay']})  # add pg1 with weight_decay
     optimizer.add_param_group({'params': pg2})  # add pg2 (biases)
-    print('Optimizer groups: %g .bias, %g Conv2d.weight, %g other' % (len(pg2), len(pg1), len(pg0)))
+    logger.info('Optimizer groups: %g .bias, %g Conv2d.weight, %g other' % (len(pg2), len(pg1), len(pg0)))
     del pg0, pg1, pg2
 
     start_epoch = 0
     best_fitness = 0.0
-    print('PESOS: ',weights)
     attempt_download(weights)
     if weights.endswith('.pt'):  # pytorch format
         # possible weights are '*.pt', 'yolov3-spp.pt', 'yolov3-tiny.pt' etc.
@@ -146,7 +147,7 @@ def train(hyp):
         # epochs
         start_epoch = ckpt['epoch'] + 1
         if epochs < start_epoch:
-            print('%s has been trained for %g epochs. Fine-tuning for %g additional epochs.' %
+            logger.info('%s has been trained for %g epochs. Fine-tuning for %g additional epochs.' %
                   (opt.weights, ckpt['epoch'], epochs))
             epochs += ckpt['epoch']  # finetune additional epochs
 
@@ -240,9 +241,9 @@ def train(hyp):
     # torch.autograd.set_detect_anomaly(True)
     results = (0, 0, 0, 0, 0, 0, 0)  # 'P', 'R', 'mAP', 'F1', 'val GIoU', 'val Objectness', 'val Classification'
     t0 = time.time()
-    print('Image sizes %g - %g train, %g test' % (imgsz_min, imgsz_max, imgsz_test))
-    print('Using %g dataloader workers' % nw)
-    print('Starting training for %g epochs...' % epochs)
+    logger.info('Image sizes %g - %g train, %g test' % (imgsz_min, imgsz_max, imgsz_test))
+    logger.info('Using %g dataloader workers' % nw)
+    logger.info('Starting training for %g epochs...' % epochs)
     for epoch in range(start_epoch, epochs):  # epoch ------------------------------------------------------------------
         model.train()
 
@@ -253,8 +254,8 @@ def train(hyp):
             dataset.indices = random.choices(range(dataset.n), weights=image_weights, k=dataset.n)  # rand weighted idx
 
         mloss = torch.zeros(4).to(device)  # mean losses
-        print(('\n' + '%10s' * 8) % ('Epoch', 'gpu_mem', 'GIoU', 'obj', 'cls', 'total', 'targets', 'img_size'))
-        pbar = tqdm(enumerate(dataloader), total=nb)  # progress bar
+        logger.info(('\n' + '%10s' * 8) % ('Epoch', 'gpu_mem', 'GIoU', 'obj', 'cls', 'total', 'targets', 'img_size'))
+        pbar = enumerate(dataloader)  # progress bar
         for i, (imgs, targets, paths, _) in pbar:  # batch -------------------------------------------------------------
             ni = i + nb * epoch  # number integrated batches (since train start)
             imgs = imgs.to(device).float() / 255.0  # uint8 to float32, 0 - 255 to 0.0 - 1.0
@@ -287,7 +288,7 @@ def train(hyp):
             # Loss
             loss, loss_items = compute_loss(pred, targets, model)
             if not torch.isfinite(loss):
-                print('WARNING: non-finite loss, ending training ', loss_items)
+                logger.info('WARNING: non-finite loss, ending training ', loss_items)
                 return results
 
             # Backward
@@ -308,7 +309,7 @@ def train(hyp):
             mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
             mem = '%.3gG' % (torch.cuda.memory_cached() / 1E9 if torch.cuda.is_available() else 0)  # (GB)
             s = ('%10s' * 2 + '%10.3g' * 6) % ('%g/%g' % (epoch, epochs - 1), mem, *mloss, len(targets), img_size)
-            pbar.set_description(s)
+            logger.info(s)
 
             # Plot
             if ni < 1:
@@ -329,6 +330,7 @@ def train(hyp):
         if not opt.notest or final_epoch:  # Calculate mAP
             is_coco = any([x in data for x in ['coco.data', 'coco2014.data', 'coco2017.data']]) and model.nc == 80
             results, maps = test.test(cfg,
+                                      input_path,
                                       data,
                                       batch_size=batch_size,
                                       imgsz=imgsz_test,
@@ -358,7 +360,7 @@ def train(hyp):
             best_fitness = fi
 
         # Save model
-        save = (not opt.nosave) or (final_epoch and not opt.evolve)
+        save = (epoch%50==0) or (final_epoch and not opt.evolve)
         if save:
             with open(results_file, 'r') as f:  # create checkpoint
                 ckpt = {'epoch': epoch,
@@ -368,6 +370,7 @@ def train(hyp):
                          'optimizer': None if final_epoch else optimizer.state_dict()}
 
             # Save last, best and delete
+            torch.save(ckpt, os.path.join(ckpt_path,'ckpt_epoch{}.pt'.format(str(epoch))))
             torch.save(ckpt, last)
             if (best_fitness == fi) and not final_epoch:
                 torch.save(ckpt, best)
@@ -389,7 +392,7 @@ def train(hyp):
 
     if not opt.evolve:
         plot_results()  # save as results.png
-    print('%g epochs completed in %.3f hours.\n' % (epoch - start_epoch + 1, (time.time() - t0) / 3600))
+    logger.info('%g epochs completed in %.3f hours.\n' % (epoch - start_epoch + 1, (time.time() - t0) / 3600))
     dist.destroy_process_group() if torch.cuda.device_count() > 1 else None
     torch.cuda.empty_cache()
     return results
@@ -406,7 +409,6 @@ if __name__ == '__main__':
     parser.add_argument('--img-size', nargs='+', type=int, default=[320, 640], help='[min_train, max-train, test]')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
     parser.add_argument('--resume', action='store_true', help='resume training from last.pt')
-    parser.add_argument('--nosave', action='store_true', help='only save final checkpoint')
     parser.add_argument('--notest', action='store_true', help='only test final epoch')
     parser.add_argument('--evolve', action='store_true', help='evolve hyperparameters')
     parser.add_argument('--bucket', type=str, default='', help='gsutil bucket')
@@ -417,12 +419,13 @@ if __name__ == '__main__':
     parser.add_argument('--adam', action='store_true', help='use adam optimizer')
     parser.add_argument('--single-cls', action='store_true', help='train as single-class dataset')
     parser.add_argument('--freeze-layers', action='store_true', help='Freeze non-output layers')  
+    parser.add_argument('--model', default='/opt/ml/model', help='where the model is going to save')
+    parser.add_argument('--checkpoints', default='/opt/ml/checkpoints', help='where the model checkpoints is going to save')
     opt = parser.parse_args()
     opt.weights = last if opt.resume and not opt.weights else opt.weights
     check_git_status()
     opt.cfg = check_file(opt.cfg)  # check file
     opt.data = check_file(opt.data)  # check file
-    print(opt)
     opt.img_size.extend([opt.img_size[-1]] * (3 - len(opt.img_size)))  # extend to 3 sizes (min, max, test)
     device = torch_utils.select_device(opt.device, apex=mixed_precision, batch_size=opt.batch_size)
     if device.type == 'cpu':
@@ -433,7 +436,7 @@ if __name__ == '__main__':
 
     tb_writer = None
     if not opt.evolve:  # Train normally
-        print('Start Tensorboard with "tensorboard --logdir=runs", view at http://localhost:6006/')
+        logger.info('Start Tensorboard with "tensorboard --logdir=runs')
         tb_writer = SummaryWriter(comment=opt.name)
         train(hyp)  # train normally
 

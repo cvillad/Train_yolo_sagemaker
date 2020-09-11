@@ -14,7 +14,7 @@ from PIL import Image, ExifTags
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from utils.logger import get_logger, info_level, debug_level
+from utils.logger import *
 from utils.utils import xyxy2xywh, xywh2xyxy
 
 logger = get_logger(debug_level)
@@ -92,14 +92,14 @@ class LoadImages:  # for inference
                     ret_val, img0 = self.cap.read()
 
             self.frame += 1
-            print('video %g/%g (%g/%g) %s: ' % (self.count + 1, self.nF, self.frame, self.nframes, path), end='')
+            logger.info('video %g/%g (%g/%g) %s: ' % (self.count + 1, self.nF, self.frame, self.nframes, path), end='')
 
         else:
             # Read image
             self.count += 1
             img0 = cv2.imread(path)  # BGR
             assert img0 is not None, 'Image Not Found ' + path
-            print('image %g/%g %s: ' % (self.count, self.nF, path), end='')
+            logger.info('image %g/%g %s: ' % (self.count, self.nF, path), end='')
 
         # Padded resize
         img = letterbox(img0, new_shape=self.img_size)[0]
@@ -170,7 +170,7 @@ class LoadWebcam:  # for inference
         # Print
         assert ret_val, 'Camera Error %s' % self.pipe
         img_path = 'webcam.jpg'
-        print('webcam %g: ' % self.count, end='')
+        logger.info('webcam %g: ' % self.count, end='')
 
         # Padded resize
         img = letterbox(img0, new_shape=self.img_size)[0]
@@ -201,7 +201,7 @@ class LoadStreams:  # multiple IP or RTSP cameras
         self.sources = sources
         for i, s in enumerate(sources):
             # Start the thread to read frames from the video stream
-            print('%g/%g: %s... ' % (i + 1, n, s), end='')
+            logger.info('%g/%g: %s... ' % (i + 1, n, s), end='')
             cap = cv2.VideoCapture(0 if s == '0' else s)
             assert cap.isOpened(), 'Failed to open %s' % s
             w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -209,7 +209,7 @@ class LoadStreams:  # multiple IP or RTSP cameras
             fps = cap.get(cv2.CAP_PROP_FPS) % 100
             _, self.imgs[i] = cap.read()  # guarantee first frame
             thread = Thread(target=self.update, args=([i, cap]), daemon=True)
-            print(' success (%gx%g at %.2f FPS).' % (w, h, fps))
+            logger.info(' success (%gx%g at %.2f FPS).' % (w, h, fps))
             thread.start()
         print('')  # newline
 
@@ -217,7 +217,7 @@ class LoadStreams:  # multiple IP or RTSP cameras
         s = np.stack([letterbox(x, new_shape=self.img_size)[0].shape for x in self.imgs], 0)  # inference shapes
         self.rect = np.unique(s, axis=0).shape[0] == 1  # rect inference if all shapes equal
         if not self.rect:
-            print('WARNING: Different stream shapes detected. For optimal performance supply similarly-shaped streams.')
+            logger.info('WARNING: Different stream shapes detected. For optimal performance supply similarly-shaped streams.')
 
     def update(self, index, cap):
         # Read next stream frame in a daemon thread
@@ -267,7 +267,6 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             if os.path.isfile(path):  # file
                 with open(path, 'r') as f:
                     f = f.read().splitlines()
-                    #logger.debug("MALPARIDO: "+str(f))
                     f = [x.replace('./', parent) if x.startswith('./') else x for x in f]  # local to global path
                 
             elif os.path.isdir(path):  # folder
@@ -305,7 +304,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 s = [x.split() for x in f.read().splitlines()]
                 assert len(s) == n, 'Shapefile out of sync'
         except:
-            s = [exif_size(Image.open(f)) for f in tqdm(self.img_files, desc='Reading image shapes')]
+            s = [exif_size(Image.open(f)) for f in self.img_files]
+            logger.info('Readed image shapes')
             np.savetxt(sp, s, fmt='%g')  # overwrites existing (if any)
 
         self.shapes = np.array(s, dtype=np.float64)
@@ -410,7 +410,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 s, nf, nm, ne, nd, n)
         assert nf > 0 or n == 20288, 'No labels found in %s. See %s' % (os.path.dirname(file) + os.sep, help_url)
         if not labels_loaded and n > 1000:
-            print('Saving labels to %s for faster future loading' % np_labels_path)
+            logger.info('Saving labels to %s for faster future loading' % np_labels_path)
             np.save(np_labels_path, self.labels)  # save for next time
 
         # Cache images into memory for faster training (WARNING: large datasets may exceed system RAM)
@@ -431,7 +431,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 try:
                     _ = io.imread(file)
                 except:
-                    print('Corrupted image detected: %s' % file)
+                    logger.error('Corrupted image detected: %s' % file)
 
     def __len__(self):
         return len(self.img_files)
@@ -788,7 +788,7 @@ def reduce_img_size(path='../data/sm4/images', img_size=1024):  # from utils.dat
             fnew = f.replace(path, path_new)  # .replace(Path(f).suffix, '.jpg')
             cv2.imwrite(fnew, img)
         except:
-            print('WARNING: image failure %s' % f)
+            logger.warning('WARNING: image failure %s' % f)
 
 
 def convert_images2bmp():  # from utils.datasets import *; convert_images2bmp()
@@ -841,7 +841,7 @@ def imagelist2folder(path='data/coco_64img.txt'):  # from utils.datasets import 
     with open(path, 'r') as f:
         for line in f.read().splitlines():
             os.system('cp "%s" %s' % (line, path[:-4]))
-            print(line)
+            logger.info(line)
 
 
 def create_folder(path='./new_folder'):

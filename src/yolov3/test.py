@@ -6,9 +6,12 @@ from torch.utils.data import DataLoader
 from models import *
 from utils.datasets import *
 from utils.utils import *
+from utils.logger import *
 
+logger = get_logger(debug_level)
 
 def test(cfg,
+         input_path,
          data,
          weights=None,
          batch_size=16,
@@ -42,7 +45,6 @@ def test(cfg,
             load_darknet_weights(model, weights)
 
         # Fuse
-        model.fuse()
         model.to(device)
 
         if device.type != 'cpu' and torch.cuda.device_count() > 1:
@@ -55,8 +57,8 @@ def test(cfg,
     # Configure run
     data = parse_data_cfg(data)
     nc = 1 if single_cls else int(data['classes'])  # number of classes
-    path = data['train']  # path to test images
-    names = load_classes(data['names'])  # class names
+    path = os.path.join(input_path,data['valid'])  # path to test images
+    names = load_classes(os.path.join(input_path,data['names']))  # class names
     iouv = torch.linspace(0.5, 0.95, 10).to(device)  # iou vector for mAP@0.5:0.95
     iouv = iouv[0].view(1)  # comment for mAP@0.5:0.95
     niou = iouv.numel()
@@ -79,7 +81,7 @@ def test(cfg,
     p, r, f1, mp, mr, map, mf1, t0, t1 = 0., 0., 0., 0., 0., 0., 0., 0., 0.
     loss = torch.zeros(3, device=device)
     jdict, stats, ap, ap_class = [], [], [], []
-    for batch_i, (imgs, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
+    for batch_i, (imgs, targets, paths, shapes) in enumerate(dataloader):
         imgs = imgs.to(device).float() / 255.0  # uint8 to float32, 0 - 255 to 0.0 - 1.0
         targets = targets.to(device)
         nb, _, height, width = imgs.shape  # batch size, channels, height, width
@@ -171,6 +173,7 @@ def test(cfg,
             plot_images(imgs, targets, paths=paths, names=names, fname=f)  # ground truth
             f = 'test_batch%g_pred.jpg' % batch_i
             plot_images(imgs, output_to_target(output, width, height), paths=paths, names=names, fname=f)  # predictions
+        logger.info("Batch {} finished".format(batch_i))
 
     # Compute statistics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
@@ -219,7 +222,7 @@ def test(cfg,
             cocoEval.summarize()
             # mf1, map = cocoEval.stats[:2]  # update to pycocotools results (mAP@0.5:0.95, mAP@0.5)
         except:
-            print('WARNING: pycocotools must be installed with numpy==1.17 to run correctly. '
+            logger.warning('pycocotools must be installed with numpy==1.17 to run correctly. '
                   'See https://github.com/cocodataset/cocoapi/issues/356')
 
     # Return results
